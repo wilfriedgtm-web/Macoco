@@ -8,6 +8,7 @@ export default function Dashboard({ onGoTo }) {
   const { salon } = useAuth()
   const { toast, showToast } = useToast()
   const [rdvs, setRdvs]       = useState([])
+  const [rdvsAvenir, setRdvsAvenir] = useState([])
   const [presta, setPresta]   = useState([])
   const [coifs, setCoifs]     = useState([])
   const [loading, setLoading] = useState(true)
@@ -25,13 +26,18 @@ export default function Dashboard({ onGoTo }) {
 
   async function load() {
     setLoading(true)
-    const [{ data: r }, { data: p }, { data: c }] = await Promise.all([
+    const [{ data: r }, { data: rv }, { data: p }, { data: c }] = await Promise.all([
       supabase.from('rendez_vous').select('*, prestations(nom,prix), coiffeuses(nom)')
         .eq('salon_id', salon.id).eq('date', today()).order('heure'),
+      supabase.from('rendez_vous').select('*, prestations(nom,prix), coiffeuses(nom)')
+        .eq('salon_id', salon.id).gt('date', today())
+        .in('statut', ['en_attente','confirme'])
+        .order('date').order('heure').limit(10),
       supabase.from('prestations').select('*').eq('salon_id', salon.id).eq('actif', true).order('ordre'),
       supabase.from('coiffeuses').select('*').eq('salon_id', salon.id).eq('actif', true),
     ])
     setRdvs(r || [])
+    setRdvsAvenir(rv || [])
     setPresta(p || [])
     setCoifs(c || [])
     if (p?.length) setFPresta(p[0].id)
@@ -144,6 +150,46 @@ export default function Dashboard({ onGoTo }) {
             </div>
           </div>
         ))
+      )}
+
+      {/* RDV À VENIR */}
+      {rdvsAvenir.length > 0 && (
+        <>
+          <div className="stitle" style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <span>À venir · {rdvsAvenir.length} RDV</span>
+            <button onClick={() => onGoTo('planning')} style={{background:'none',border:'none',color:'var(--bx)',fontSize:12,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>Voir planning →</button>
+          </div>
+          {rdvsAvenir.map(rdv => {
+            const d = new Date(rdv.date + 'T12:00:00')
+            const istomorrow = rdv.date === new Date(new Date().setDate(new Date().getDate()+1)).toISOString().split('T')[0]
+            const dateLabel = istomorrow ? 'Demain' : d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})
+            return (
+              <div key={rdv.id} className={`rdv-item ${STATUTS[rdv.statut]?.cls||'wait'}`}>
+                <div className="rdv-av">👩🏿</div>
+                <div className="rdv-body">
+                  <div className="rdv-nom">{rdv.client_nom}</div>
+                  <div className="rdv-svc">{rdv.prestations?.nom||'Prestation'}</div>
+                  <div className="rdv-meta">
+                    <span style={{fontSize:12,fontWeight:700,color:'var(--bx)',background:'var(--bx-p)',padding:'2px 8px',borderRadius:20}}>{dateLabel}</span>
+                    <span className="rdv-time">{rdv.heure}</span>
+                    {rdv.coiffeuses && <span className="rdv-staff">✂️ {rdv.coiffeuses.nom}</span>}
+                    <Badge statut={rdv.statut}/>
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:5,flexShrink:0}}>
+                  {rdv.statut === 'en_attente' && (
+                    <Btn sm variant="wa" onClick={() => {
+                      const dateF = d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})
+                      const msg = `Bonjour ${rdv.client_nom}, votre rendez-vous au ${salon.nom} est confirmé pour le ${dateF} à ${rdv.heure}${rdv.prestations?.nom?' — '+rdv.prestations.nom:''}. À bientôt ! ✂️`
+                      window.open(waLink(rdv.client_tel, msg), '_blank')
+                      showToast(`WhatsApp envoyé à ${rdv.client_nom}`, 'wa')
+                    }}>Confirmer 💬</Btn>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </>
       )}
 
       <div style={{margin:'16px 16px 0'}}>

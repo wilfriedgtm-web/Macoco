@@ -3,7 +3,38 @@ import { useParams } from 'react-router-dom'
 import { supabase, formatPrix, PHOTOS_DEFAUT, waLink } from '../../lib/supabase'
 import { Modal, Gallery } from '../../components/UI'
 
-const HEURES_DISPO = ['09h00','10h00','11h00','14h00','15h30','17h00']
+const HEURES_DISPO = ['08h00','09h00','10h00','11h00','12h00','13h00','14h00','15h00','15h30','16h00','17h00','18h00']
+
+function getNextDays(n = 30) {
+  const days = []
+  const today = new Date()
+  for (let i = 0; i < n; i++) {
+    const d = new Date(today)
+    d.setDate(today.getDate() + i)
+    const iso = d.toISOString().split('T')[0]
+    const isToday = i === 0
+    const isTomorrow = i === 1
+    days.push({
+      iso,
+      short: d.toLocaleDateString('fr-FR', { weekday: 'short' }),
+      day: d.getDate(),
+      month: d.toLocaleDateString('fr-FR', { month: 'short' }),
+      isToday,
+      isTomorrow,
+      monthYear: d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
+    })
+  }
+  return days
+}
+
+function groupByMonth(days) {
+  const groups = {}
+  days.forEach(d => {
+    if (!groups[d.monthYear]) groups[d.monthYear] = []
+    groups[d.monthYear].push(d)
+  })
+  return groups
+}
 const AVIS_DEFAUT = [
   { nom:'Patience Ekambi', emoji:'👩🏿', bg:'#F9F0F2', presta:'Tresse box braids', date:'Il y a 3 jours', texte:'"Grâce est vraiment talentueuse ! Réservé via WhatsApp, réponse en 2 minutes. Venue à l\'heure, zéro attente. Résultat magnifique 🙌"' },
   { nom:'Diane Moukoko', emoji:'👩🏽', bg:'#FDF6E7', presta:'Coupe + Brushing', date:'Il y a 1 semaine', texte:'"Avant j\'attendais 1h30. Maintenant elles me préviennent quand c\'est mon tour. Je viens pile à l\'heure 😍"' },
@@ -28,6 +59,8 @@ export default function Vitrine() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [selectedP, setSelectedP] = useState(null)
+  const [selectedDate, setSelectedDate] = useState(getNextDays(1)[0].iso)
+  const [dates] = useState(() => getNextDays(30))
   const [selectedH, setSelectedH] = useState('15h30')
   const [gallery, setGallery] = useState({ open:false, photos:[], label:'' })
   const [modalResa, setModalResa] = useState(false)
@@ -61,7 +94,7 @@ export default function Vitrine() {
       prestation_id: selectedP?.id || null,
       client_nom: nom.trim(),
       client_tel: tel.trim(),
-      date: new Date().toISOString().split('T')[0],
+      date: selectedDate,
       heure: selectedH,
       message: msg.trim(),
       statut: 'en_attente',
@@ -111,7 +144,12 @@ export default function Vitrine() {
         {/* DISPO */}
         <div style={{background:'var(--vp)',border:'1.5px solid #bbf7d0',borderRadius:14,padding:'12px 14px',display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
           <span style={{fontSize:22}}>📅</span>
-          <div><div style={{fontSize:13,fontWeight:800,color:'var(--vert)'}}>Prochain créneau disponible</div><div style={{fontSize:12,color:'var(--vert)',marginTop:1}}>Aujourd'hui à <strong>15h30</strong></div></div>
+          <div>
+            <div style={{fontSize:13,fontWeight:800,color:'var(--vert)'}}>Prochain créneau disponible</div>
+            <div style={{fontSize:12,color:'var(--vert)',marginTop:1}}>
+              {selectedDate === new Date().toISOString().split('T')[0] ? "Aujourd'hui" : new Date(selectedDate).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})} à <strong>15h30</strong>
+            </div>
+          </div>
         </div>
 
         {/* PRESTATIONS */}
@@ -148,8 +186,44 @@ export default function Vitrine() {
           </div>
         ))}
 
+        {/* DATE */}
+        <div className="stitle" style={{margin:'20px 0 12px'}}>Choisir une date</div>
+        {Object.entries(groupByMonth(dates)).map(([monthYear, days]) => (
+          <div key={monthYear} style={{marginBottom:16}}>
+            <div style={{fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.5,marginBottom:8,paddingLeft:2}}>
+              {monthYear}
+            </div>
+            <div style={{display:'flex',gap:8,overflowX:'auto',paddingBottom:4,scrollbarWidth:'none'}}>
+              {days.map(d => (
+                <button key={d.iso} onClick={() => setSelectedDate(d.iso)}
+                  style={{flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',padding:'10px 12px',borderRadius:14,border:'none',
+                    background:selectedDate===d.iso?'var(--bx)':'#fff',
+                    cursor:'pointer',fontFamily:'inherit',
+                    boxShadow:'0 1px 3px rgba(0,0,0,.08)',minWidth:52}}>
+                  <span style={{fontSize:10,fontWeight:700,color:selectedDate===d.iso?'rgba(255,255,255,.7)':'var(--gris)',textTransform:'uppercase'}}>
+                    {d.short}
+                  </span>
+                  <span style={{fontSize:20,fontWeight:900,color:selectedDate===d.iso?'#fff':'var(--noir)',lineHeight:1.2}}>
+                    {d.day}
+                  </span>
+                  {d.isToday && (
+                    <span style={{fontSize:8,fontWeight:800,color:selectedDate===d.iso?'var(--or-l)':'var(--bx)',marginTop:2,textTransform:'uppercase'}}>
+                      Auj.
+                    </span>
+                  )}
+                  {d.isTomorrow && !d.isToday && (
+                    <span style={{fontSize:8,fontWeight:800,color:selectedDate===d.iso?'rgba(255,255,255,.7)':'var(--gris)',marginTop:2,textTransform:'uppercase'}}>
+                      Dem.
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+
         {/* CRENEAUX */}
-        <div className="stitle" style={{margin:'20px 0 12px'}}>Choisir un créneau</div>
+        <div className="stitle" style={{margin:'0 0 12px'}}>Choisir un créneau</div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:20}}>
           {HEURES_DISPO.map(h => (
             <button key={h} onClick={() => setSelectedH(h)}

@@ -1,23 +1,25 @@
 import { useState } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { Spinner } from './components/UI'
-import AuthScreen      from './pages/auth/AuthScreen'
+import AuthScreen       from './pages/auth/AuthScreen'
 import OnboardingScreen from './pages/auth/OnboardingScreen'
-import Dashboard       from './pages/dashboard/Dashboard'
-import Attente         from './pages/attente/Attente'
-import Planning        from './pages/planning/Planning'
-import Catalogue       from './pages/catalogue/Catalogue'
-import Parametres      from './pages/parametres/Parametres'
-import Vitrine         from './pages/vitrine/Vitrine'
+import Dashboard        from './pages/dashboard/Dashboard'
+import Attente          from './pages/attente/Attente'
+import Planning         from './pages/planning/Planning'
+import Catalogue        from './pages/catalogue/Catalogue'
+import Parametres       from './pages/parametres/Parametres'
+import Vitrine          from './pages/vitrine/Vitrine'
+import Home             from './pages/home/Home'
+import Rejoindre        from './pages/rejoindre/Rejoindre'
 import './styles/global.css'
 
 const TABS = [
-  { id: 'dashboard', label: 'Accueil',  icon: '🏠' },
-  { id: 'attente',   label: 'Attente',  icon: '⏱️' },
-  { id: 'planning',  label: 'Planning', icon: '📅' },
-  { id: 'catalogue', label: 'Services', icon: '💄' },
-  { id: 'parametres',label: 'Réglages', icon: '⚙️' },
+  { id: 'dashboard',  label: 'Accueil',  icon: '🏠' },
+  { id: 'attente',    label: 'Attente',  icon: '⏱️' },
+  { id: 'planning',   label: 'Planning', icon: '📅' },
+  { id: 'catalogue',  label: 'Services', icon: '💄' },
+  { id: 'parametres', label: 'Réglages', icon: '⚙️' },
 ]
 
 function Splash() {
@@ -40,11 +42,9 @@ function AppInner() {
   if (!session) return <AuthScreen />
   if (session && !salon) return <OnboardingScreen />
 
-  const goTo = (tab) => setActiveTab(tab)
-
   const renderPage = () => {
     switch (activeTab) {
-      case 'dashboard':  return <Dashboard onGoTo={goTo} />
+      case 'dashboard':  return <Dashboard onGoTo={setActiveTab} />
       case 'attente':    return <Attente />
       case 'planning':   return <Planning />
       case 'catalogue':  return <Catalogue />
@@ -55,7 +55,6 @@ function AppInner() {
 
   return (
     <div>
-      {/* HEADER */}
       <div className="hdr">
         <div>
           <div className="hdr-logo">Ma'<span>coco</span></div>
@@ -66,10 +65,8 @@ function AppInner() {
         </div>
       </div>
 
-      {/* PAGE */}
       {renderPage()}
 
-      {/* NAV */}
       <nav className="nav">
         {TABS.map(t => (
           <button key={t.id} className={`nav-btn${activeTab === t.id ? ' on' : ''}`} onClick={() => setActiveTab(t.id)}>
@@ -82,15 +79,29 @@ function AppInner() {
   )
 }
 
+function AppWrapper() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/book/:slug" element={<Vitrine />} />
-          <Route path="/*" element={<AppInner />} />
-        </Routes>
-      </AuthProvider>
+      <Routes>
+        {/* PAGES PUBLIQUES */}
+        <Route path="/"           element={<Home />} />
+        <Route path="/rejoindre"  element={<Rejoindre />} />
+        <Route path="/book/:slug" element={<Vitrine />} />
+
+        {/* APP GÉRANT */}
+        <Route path="/app/*" element={<AppWrapper />} />
+
+        {/* REDIRECT ancienne route */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   )
 }

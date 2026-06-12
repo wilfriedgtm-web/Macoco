@@ -86,7 +86,7 @@ export default function Vitrine() {
     <div style={{maxWidth:430,margin:'0 auto',background:'var(--gl)',minHeight:'100dvh',paddingBottom:24}}>
       {/* HERO */}
       <div style={{position:'relative',height:240,overflow:'hidden'}}>
-        <img src={salon.cover_url || PHOTOS_DEFAUT.salon} alt={salon.nom} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+        <img src={(salon.cover_url || PHOTOS_DEFAUT.salon) + '?t=' + (salon.updated_at || '')} alt={salon.nom} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
         <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,rgba(0,0,0,.1) 0%,rgba(107,26,42,.88) 100%)'}}/>
         <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'18px 20px'}}>
           <div style={{fontSize:28,fontWeight:900,color:'#fff'}}>{salon.nom} ✂️</div>

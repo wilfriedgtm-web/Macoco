@@ -12,7 +12,7 @@ import Parametres       from './pages/parametres/Parametres'
 import Vitrine          from './pages/vitrine/Vitrine'
 import Home             from './pages/home/Home'
 import Rejoindre        from './pages/rejoindre/Rejoindre'
-import Salons          from './pages/rejoindre/Rejoindre'
+import Pro             from './pages/pro/Pro'
 import './styles/global.css'
 
 const TABS = [
@@ -96,6 +96,7 @@ export default function App() {
         <Route path="/"           element={<Home />} />
         <Route path="/rejoindre"  element={<Rejoindre />} />
         <Route path="/salons"     element={<Rejoindre />} />
+        <Route path="/pro"        element={<Pro />} />
         <Route path="/book/:slug" element={<Vitrine />} />
 
         {/* APP GÉRANT */}

@@ -41,9 +41,10 @@ export default function Parametres() {
     const { error } = await supabase.storage.from('salon-covers').upload(path, file, { upsert: true })
     if (error) { showToast('Erreur upload : ' + error.message, 'err'); setUploadingCover(false); return }
     const { data: { publicUrl } } = supabase.storage.from('salon-covers').getPublicUrl(path)
+    const urlWithBust = publicUrl + '?t=' + Date.now()
     const { data: updated } = await supabase.from('salons').update({ cover_url: publicUrl }).eq('id', salon.id).select().single()
-    setCoverUrl(publicUrl)
-    setSalon(updated)
+    setCoverUrl(urlWithBust)
+    setSalon({ ...updated, cover_url: publicUrl })
     setUploadingCover(false)
     showToast('✓ Photo de couverture mise à jour', 'ok')
   }

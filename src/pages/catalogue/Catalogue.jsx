@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase, formatPrix, PHOTOS_DEFAUT } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Btn, Modal, Input, Textarea, Gallery, Spinner, Empty } from '../../components/UI'
@@ -6,15 +6,29 @@ import { useToast } from '../../hooks/useToast'
 
 const ICONS = ['✂️','🪢','💅','🧴','👁️','💆','💇','🌸','✨','💋']
 
+function getCoverDefault(nom) {
+  const k = (nom||'').toLowerCase()
+  if(k.includes('braid')||k.includes('tresse')) return PHOTOS_DEFAUT.braids
+  if(k.includes('coupe')||k.includes('brush')) return PHOTOS_DEFAUT.coupe
+  if(k.includes('manu')||k.includes('ongle')) return PHOTOS_DEFAUT.manu
+  if(k.includes('defris')||k.includes('liss')) return PHOTOS_DEFAUT.defrisage
+  if(k.includes('cil')) return PHOTOS_DEFAUT.cils
+  return PHOTOS_DEFAUT.default
+}
+
 export default function Catalogue() {
   const { salon } = useAuth()
   const { toast, showToast } = useToast()
-  const [presta, setPresta] = useState([])
-  const [photos, setPhotos] = useState({})
+  const [presta, setPresta]   = useState([])
+  const [photos, setPhotos]   = useState({})
   const [loading, setLoading] = useState(true)
   const [modalNew, setModalNew] = useState(false)
   const [gallery, setGallery] = useState({ open:false, photos:[], label:'', startIdx:0 })
-  const [fNom,setFNom]=useState(''); const [fDesc,setFDesc]=useState(''); const [fPrix,setFPrix]=useState(''); const [fDuree,setFDuree]=useState(''); const [fIcon,setFIcon]=useState('✂️'); const [saving,setSaving]=useState(false)
+  const [uploading, setUploading] = useState({})
+  const uploadRefs = useRef({})
+  const [fNom,setFNom]=useState(''); const [fDesc,setFDesc]=useState('')
+  const [fPrix,setFPrix]=useState(''); const [fDuree,setFDuree]=useState('')
+  const [fIcon,setFIcon]=useState('✂️'); const [saving,setSaving]=useState(false)
 
   useEffect(()=>{ if(salon) load() },[salon])
 
@@ -22,12 +36,35 @@ export default function Catalogue() {
     setLoading(true)
     const {data:p} = await supabase.from('prestations').select('*').eq('salon_id',salon.id).order('ordre')
     setPresta(p||[])
-    if(p?.length){
+    if(p?.length) {
       const {data:ph} = await supabase.from('presta_photos').select('*').in('prestation_id',p.map(x=>x.id)).order('ordre')
-      const map={}; (ph||[]).forEach(x=>{ if(!map[x.prestation_id]) map[x.prestation_id]=[]; map[x.prestation_id].push(x.url) })
+      const map={}; (ph||[]).forEach(x=>{ if(!map[x.prestation_id]) map[x.prestation_id]=[]; map[x.prestation_id].push({id:x.id,url:x.url}) })
       setPhotos(map)
     }
     setLoading(false)
+  }
+
+  async function uploadPhoto(prestaId, e) {
+    const file = e.target.files?.[0]
+    if(!file) return
+    if(file.size > 5*1024*1024) { showToast('Photo trop lourde (max 5Mo)','err'); return }
+    setUploading(u=>({...u,[prestaId]:true}))
+    const ext = file.name.split('.').pop()
+    const path = `${salon.id}/${prestaId}/${Date.now()}.${ext}`
+    const {error:upErr} = await supabase.storage.from('presta-photos').upload(path, file, {upsert:false})
+    if(upErr) { showToast('Erreur upload','err'); setUploading(u=>({...u,[prestaId]:false})); return }
+    const {data:{publicUrl}} = supabase.storage.from('presta-photos').getPublicUrl(path)
+    const ordre = (photos[prestaId]?.length || 0)
+    await supabase.from('presta_photos').insert({ prestation_id:prestaId, url:publicUrl, ordre })
+    setUploading(u=>({...u,[prestaId]:false}))
+    showToast('✓ Photo ajoutée','ok')
+    load()
+  }
+
+  async function deletePhoto(photoId, prestaId) {
+    await supabase.from('presta_photos').delete().eq('id', photoId)
+    showToast('Photo supprimée','ok')
+    load()
   }
 
   async function creer() {
@@ -42,17 +79,8 @@ export default function Catalogue() {
     showToast(p.actif?'Désactivée':'Activée','ok'); load()
   }
 
-  const getCover = (p) => {
-    if(photos[p.id]?.length) return photos[p.id][0]
-    const k = p.nom.toLowerCase()
-    if(k.includes('braid')||k.includes('tresse')) return PHOTOS_DEFAUT.braids
-    if(k.includes('coupe')||k.includes('brush')) return PHOTOS_DEFAUT.coupe
-    if(k.includes('manu')||k.includes('ongle')) return PHOTOS_DEFAUT.manu
-    if(k.includes('defris')||k.includes('liss')) return PHOTOS_DEFAUT.defrisage
-    if(k.includes('cil')) return PHOTOS_DEFAUT.cils
-    return PHOTOS_DEFAUT.default
-  }
-  const getPhotos = (p) => photos[p.id]?.length ? photos[p.id] : [getCover(p)]
+  const getPhotos = (p) => photos[p.id]?.map(x=>x.url) || []
+  const getCover  = (p) => getPhotos(p)[0] || getCoverDefault(p.nom)
 
   if(loading) return <Spinner/>
 
@@ -63,21 +91,53 @@ export default function Catalogue() {
         <Btn variant="bx" sm onClick={()=>setModalNew(true)}>+ Ajouter</Btn>
       </div>
 
-      {presta.length===0?<Empty icon="✂️" title="Aucune prestation" sub="Ajoutez vos prestations pour que vos clientes puissent réserver." action="+ Ajouter" onAction={()=>setModalNew(true)}/>:
+      {presta.length===0 ? <Empty icon="✂️" title="Aucune prestation" sub="Ajoutez vos prestations pour que vos clientes puissent réserver." action="+ Ajouter" onAction={()=>setModalNew(true)}/> :
         presta.map(p=>(
-          <div key={p.id} className="presta-card" style={{opacity:p.actif?1:.55}}>
-            <div className="pc-hero" onClick={()=>setGallery({open:true,photos:getPhotos(p),label:p.nom,startIdx:0})}>
+          <div key={p.id} className="presta-card" style={{opacity:p.actif?1:.6}}>
+            {/* HERO PHOTO */}
+            <div className="pc-hero" onClick={()=>getPhotos(p).length>0&&setGallery({open:true,photos:getPhotos(p),label:p.nom,startIdx:0})}>
               <img src={getCover(p)} alt={p.nom}/>
               <div className="pc-overlay"/>
               <div className="pc-bottom">
                 <span style={{fontSize:17,fontWeight:900,color:'#fff'}}>{p.icon} {p.nom}</span>
                 <span style={{fontSize:15,fontWeight:900,color:'var(--or-l)'}}>{formatPrix(p.prix)}</span>
               </div>
-              <button className="pc-btn-photos" onClick={e=>{e.stopPropagation();setGallery({open:true,photos:getPhotos(p),label:p.nom,startIdx:0})}}>📸 {getPhotos(p).length}</button>
+              {getPhotos(p).length > 0 && (
+                <button className="pc-btn-photos">📸 {getPhotos(p).length} photo{getPhotos(p).length>1?'s':''}</button>
+              )}
             </div>
-            <div className="photo-strip">
-              {getPhotos(p).map((src,i)=><img key={i} src={src} alt="" onClick={()=>setGallery({open:true,photos:getPhotos(p),label:p.nom,startIdx:i})}/>)}
+
+            {/* STRIP PHOTOS + UPLOAD */}
+            <div style={{padding:'10px 0 4px'}}>
+              <div style={{fontSize:11,fontWeight:700,color:'var(--gris)',padding:'0 16px',marginBottom:6,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <span>📸 Photos</span>
+                <span style={{fontSize:10,color:'var(--gris)'}}>Appuyez pour agrandir · Maintenez pour supprimer</span>
+              </div>
+              <div className="photo-strip">
+                {/* PHOTOS EXISTANTES */}
+                {(photos[p.id]||[]).map((ph,i)=>(
+                  <div key={ph.id} style={{position:'relative',flexShrink:0}}>
+                    <img src={ph.url} alt="" onClick={()=>setGallery({open:true,photos:getPhotos(p),label:p.nom,startIdx:i})}
+                      style={{width:110,height:80,objectFit:'cover',borderRadius:10,cursor:'pointer'}}/>
+                    <button onClick={()=>deletePhoto(ph.id,p.id)}
+                      style={{position:'absolute',top:4,right:4,background:'rgba(0,0,0,.6)',border:'none',color:'#fff',borderRadius:'50%',width:20,height:20,fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                {/* BOUTON AJOUTER PHOTO */}
+                <div onClick={()=>uploadRefs.current[p.id]?.click()}
+                  style={{width:110,height:80,borderRadius:10,border:'2px dashed #e2e8f0',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,background:'#fafafa',gap:4}}>
+                  {uploading[p.id] ? <div className="spin" style={{width:20,height:20,borderWidth:2,borderTopColor:'var(--bx)',borderColor:'var(--gl)'}}/> : <>
+                    <span style={{fontSize:20}}>📷</span>
+                    <span style={{fontSize:10,fontWeight:700,color:'var(--gris)'}}>Ajouter</span>
+                  </>}
+                </div>
+                <input ref={el=>uploadRefs.current[p.id]=el} type="file" accept="image/*" style={{display:'none'}} onChange={e=>uploadPhoto(p.id,e)}/>
+              </div>
             </div>
+
+            {/* BODY */}
             <div className="pc-body">
               {p.description&&<div style={{fontSize:13,color:'var(--gris)',lineHeight:1.55,marginBottom:8}}>{p.description}</div>}
               <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>

@@ -434,7 +434,7 @@ export default function Vitrine() {
           )}
           <div style={{ fontSize:11,color:'var(--gris)',marginTop:salon.insta?8:0 }}>
             Propulsé par{' '}
-            <a href="https://macoco.cm" target="_blank" rel="noreferrer"
+            <a href="https://macoco-c2oy.vercel.app" target="_blank" rel="noreferrer"
               style={{ color:'var(--bx)',fontWeight:700,textDecoration:'none' }}>
               Ma'coco
             </a>

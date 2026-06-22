@@ -424,8 +424,22 @@ export default function Vitrine() {
           </div>
         ))}
 
-        <div style={{ textAlign:'center',fontSize:11,color:'var(--gris)',paddingTop:8 }}>
-          Propulsé par <strong style={{color:'var(--bx)'}}>Ma'coco</strong>
+        {/* INSTAGRAM + FOOTER */}
+        <div style={{ textAlign:'center',paddingTop:12,paddingBottom:8 }}>
+          {salon.insta && (
+            <a href={`https://instagram.com/${salon.insta.replace('@','')}`} target="_blank" rel="noreferrer"
+              style={{ display:'inline-flex',alignItems:'center',gap:8,background:'linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)',color:'#fff',padding:'10px 20px',borderRadius:20,fontSize:13,fontWeight:700,textDecoration:'none',marginBottom:12 }}>
+              📸 {salon.insta.startsWith('@') ? salon.insta : '@'+salon.insta}
+            </a>
+          )}
+          <div style={{ fontSize:11,color:'var(--gris)',marginTop:salon.insta?8:0 }}>
+            Propulsé par{' '}
+            <a href="https://macoco.cm" target="_blank" rel="noreferrer"
+              style={{ color:'var(--bx)',fontWeight:700,textDecoration:'none' }}>
+              Ma'coco
+            </a>
+            {' '}· La réservation beauté au Cameroun
+          </div>
         </div>
       </div>
 

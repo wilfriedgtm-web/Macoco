@@ -178,11 +178,13 @@ export default function Dashboard({ onGoTo }) {
                 </div>
                 <div style={{display:'flex',gap:5,flexShrink:0}}>
                   {rdv.statut === 'en_attente' && (
-                    <Btn sm variant="wa" onClick={() => {
+                    <Btn sm variant="wa" onClick={async () => {
                       const dateF = d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})
                       const msg = `Bonjour ${rdv.client_nom}, votre rendez-vous au ${salon.nom} est confirmé pour le ${dateF} à ${rdv.heure}${rdv.prestations?.nom?' — '+rdv.prestations.nom:''}. À bientôt ! ✂️`
+                      await supabase.from('rendez_vous').update({ statut:'confirme', confirme_at: new Date().toISOString() }).eq('id', rdv.id)
                       window.open(waLink(rdv.client_tel, msg), '_blank')
-                      showToast(`WhatsApp envoyé à ${rdv.client_nom}`, 'wa')
+                      showToast(`✓ ${rdv.client_nom} confirmée`, 'ok')
+                      load()
                     }}>Confirmer 💬</Btn>
                   )}
                 </div>

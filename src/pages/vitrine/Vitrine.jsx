@@ -55,9 +55,30 @@ function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) 
   const [msg, setMsg] = useState('')
   const [sending, setSending] = useState(false)
   const [dates] = useState(() => getNextDays(30))
+  const [creneauxPris, setCreneauxPris] = useState([])
+  const [loadingCreneaux, setLoadingCreneaux] = useState(false)
 
   useEffect(() => { if (presta) setSelectedP(presta) }, [presta])
   useEffect(() => { if (open) setStep(1) }, [open])
+
+  // Charger les créneaux déjà pris quand la date change
+  useEffect(() => {
+    if (!open || !salon?.id || !selectedDate) return
+    async function fetchCreneaux() {
+      setLoadingCreneaux(true)
+      const { data } = await supabase
+        .from('rendez_vous')
+        .select('heure')
+        .eq('salon_id', salon.id)
+        .eq('date', selectedDate)
+        .in('statut', ['en_attente', 'confirme', 'en_cours'])
+      setCreneauxPris((data || []).map(r => r.heure))
+      setLoadingCreneaux(false)
+      // Reset heure si prise
+      if (data?.some(r => r.heure === selectedH)) setSelectedH('')
+    }
+    fetchCreneaux()
+  }, [open, salon?.id, selectedDate])
 
   async function reserver() {
     if (!nom.trim() || !tel.trim()) return
@@ -142,20 +163,43 @@ function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) 
               ))}
 
               {/* HEURE */}
-              <div style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.5,marginBottom:10 }}>Heure</div>
+              <div style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.5,marginBottom:6 }}>Heure</div>
+              {loadingCreneaux && <div style={{ fontSize:12,color:'var(--gris)',marginBottom:10 }}>Vérification des disponibilités...</div>}
               <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:7,marginBottom:20 }}>
-                {HEURES.map(h => (
-                  <button key={h} onClick={() => setSelectedH(h)}
-                    style={{ padding:'10px 4px',borderRadius:11,border:'none',background:selectedH===h?'var(--bx)':'var(--gl)',color:selectedH===h?'#fff':'var(--noir)',fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit',transition:'all .15s' }}>
-                    {h}
-                  </button>
-                ))}
+                {HEURES.map(h => {
+                  const pris = creneauxPris.includes(h)
+                  const selected = selectedH === h
+                  return (
+                    <button key={h}
+                      disabled={pris}
+                      onClick={() => !pris && setSelectedH(h)}
+                      style={{
+                        padding:'10px 4px',borderRadius:11,border:'none',
+                        background: pris ? '#f1f5f9' : selected ? 'var(--bx)' : 'var(--gl)',
+                        color: pris ? '#cbd5e1' : selected ? '#fff' : 'var(--noir)',
+                        fontSize:12,fontWeight:700,
+                        cursor: pris ? 'not-allowed' : 'pointer',
+                        fontFamily:'inherit',transition:'all .15s',
+                        position:'relative',
+                        textDecoration: pris ? 'line-through' : 'none',
+                        opacity: pris ? .6 : 1,
+                      }}>
+                      {h}
+                      {pris && <div style={{ fontSize:8,color:'#94a3b8',marginTop:1 }}>Complet</div>}
+                    </button>
+                  )
+                })}
               </div>
 
+              {!selectedH && !loadingCreneaux && (
+                <div style={{ background:'var(--or-p)',border:'1px solid var(--or-l)',borderRadius:12,padding:'10px 14px',marginBottom:12,fontSize:13,color:'var(--or)',fontWeight:600 }}>
+                  ⚠️ Veuillez choisir un créneau disponible
+                </div>
+              )}
               <button onClick={() => setStep(2)}
-                disabled={!selectedP || !selectedDate || !selectedH}
-                style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',background:'var(--bx)',color:'#fff',fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'inherit',opacity:(!selectedP||!selectedDate||!selectedH)?.5:1 }}>
-                Continuer → {selectedP ? `${formatPrix(selectedP.prix)}` : ''}
+                disabled={!selectedP || !selectedDate || !selectedH || loadingCreneaux}
+                style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',background:'var(--bx)',color:'#fff',fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'inherit',opacity:(!selectedP||!selectedDate||!selectedH||loadingCreneaux)?.5:1 }}>
+                {loadingCreneaux ? 'Vérification...' : `Continuer → ${selectedP ? formatPrix(selectedP.prix) : ''}`}
               </button>
             </>
           )}

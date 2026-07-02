@@ -57,8 +57,15 @@ export function today() {
   return new Date().toISOString().split('T')[0]
 }
 
+// Nettoie un numéro de téléphone (espaces, tirets, +, parenthèses) et génère
+// un lien wa.me fonctionnel. Le numéro doit être stocké avec son indicatif
+// pays (ex : +237677112233, +33612345678, +2250102030405).
+export function cleanTel(tel) {
+  return (tel || '').replace(/[^\d]/g, '')
+}
+
 export function waLink(tel, msg) {
-  const clean = tel?.replace(/\D/g, '')
+  const clean = cleanTel(tel)
   return `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`
 }
 

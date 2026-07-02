@@ -19,6 +19,7 @@ create table salons (
   vitrine_active boolean default true,
   heures        text default '8h – 19h · Lun–Sam',
   insta         text,
+  langue        text default 'fr' check (langue in ('fr','en')),
   created_at    timestamptz default now()
 );
 alter table salons enable row level security;

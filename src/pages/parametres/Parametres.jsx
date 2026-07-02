@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase, PHOTOS_DEFAUT } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Btn, Input, Textarea, Modal } from '../../components/UI'
+import { Btn, Input, Textarea, Modal, PhoneInputCM } from '../../components/UI'
 import { useToast } from '../../hooks/useToast'
 
 export default function Parametres() {
@@ -15,6 +15,7 @@ export default function Parametres() {
   const [heures, setHeures]   = useState(salon?.heures || '8h – 19h · Lun–Sam')
   const [insta, setInsta]     = useState(salon?.insta || '')
   const [vitrine, setVitrine] = useState(salon?.vitrine_active ?? true)
+  const [langue, setLangue]   = useState(salon?.langue || 'fr')
   const [saving, setSaving]   = useState(false)
   const [modalShare, setModalShare] = useState(false)
   const [coifs, setCoifs]     = useState([])
@@ -60,6 +61,14 @@ export default function Parametres() {
     showToast('✓ Modifications enregistrées', 'ok')
   }
 
+  async function changerLangue(l) {
+    setLangue(l)
+    const { data, error } = await supabase.from('salons').update({ langue: l }).eq('id', salon.id).select().single()
+    if (error) { showToast('Erreur : ' + error.message, 'err'); return }
+    setSalon(data)
+    showToast(l === 'en' ? '✓ Showcase switched to English' : '✓ Vitrine passée en français', 'ok')
+  }
+
   async function addCoif() {
     if (!nomCoif.trim()) return
     await supabase.from('coiffeuses').insert({ salon_id: salon.id, nom: nomCoif.trim(), tel: telCoif.trim() })
@@ -69,7 +78,7 @@ export default function Parametres() {
 
   async function removeCoif(id) {
     await supabase.from('coiffeuses').update({ actif: false }).eq('id', id)
-    showToast('Coiffeuse retirée', 'ok'); loadCoifs()
+    showToast('Praticienne retirée', 'ok'); loadCoifs()
   }
 
   const vitrineUrl = `${window.location.origin}/book/${salon?.slug}`
@@ -127,11 +136,23 @@ export default function Parametres() {
         </button>
       </div>
 
+      {/* LANGUE DE LA VITRINE */}
+      <div className="stitle">Langue de la vitrine</div>
+      <div className="card">
+        <div style={{fontSize:12,color:'var(--gris)',marginBottom:12}}>
+          Choisissez la langue dans laquelle votre vitrine publique s'affiche à vos clientes, ainsi que la langue des messages WhatsApp automatiques.
+        </div>
+        <div className="lang-toggle">
+          <button className={`lang-toggle-btn${langue==='fr'?' on':''}`} onClick={()=>changerLangue('fr')}>🇫🇷 Français</button>
+          <button className={`lang-toggle-btn${langue==='en'?' on':''}`} onClick={()=>changerLangue('en')}>🇬🇧 English</button>
+        </div>
+      </div>
+
       {/* INFOS SALON */}
       <div className="stitle">Informations du salon</div>
       <div className="card">
         <Input label="Nom du salon" value={nom} onChange={setNom} placeholder="Salon Grâce"/>
-        <Input label="Téléphone WhatsApp" value={tel} onChange={setTel} type="tel" placeholder="+237 6XX XXX XXX"/>
+        <PhoneInputCM label="Téléphone WhatsApp" value={tel} onChange={setTel}/>
         <Input label="Ville" value={ville} onChange={setVille} placeholder="Douala"/>
         <Input label="Adresse" value={adresse} onChange={setAdresse} placeholder="Rue Joss 14, Akwa"/>
         <Input label="Horaires" value={heures} onChange={setHeures} placeholder="8h – 19h · Lun–Sam"/>
@@ -140,8 +161,8 @@ export default function Parametres() {
         <Btn variant="bx" full disabled={saving} onClick={save}>{saving?'Enregistrement…':'✓ Enregistrer'}</Btn>
       </div>
 
-      {/* COIFFEUSES */}
-      <div className="stitle">Coiffeuses</div>
+      {/* PRATICIENNES */}
+      <div className="stitle">Praticiennes</div>
       <div className="card">
         {coifs.map(c => (
           <div key={c.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--gl)'}}>
@@ -155,8 +176,8 @@ export default function Parametres() {
         ))}
         <div style={{marginTop:14}}>
           <Input label="Nom" value={nomCoif} onChange={setNomCoif} placeholder="Ex : Sandrine"/>
-          <Input label="Téléphone (optionnel)" value={telCoif} onChange={setTelCoif} type="tel" placeholder="+237 6XX XXX XXX"/>
-          <Btn variant="ghost" full onClick={addCoif} disabled={!nomCoif.trim()}>+ Ajouter une coiffeuse</Btn>
+          <PhoneInputCM label="Téléphone (optionnel)" value={telCoif} onChange={setTelCoif}/>
+          <Btn variant="ghost" full onClick={addCoif} disabled={!nomCoif.trim()}>+ Ajouter une praticienne</Btn>
         </div>
       </div>
 

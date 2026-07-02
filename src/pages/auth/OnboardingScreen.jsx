@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase, genSlug } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Btn, Input } from '../../components/UI'
+import { Btn, Input, PhoneInputCM } from '../../components/UI'
 
 const VILLES = ['Douala','Yaoundé','Bafoussam','Garoua','Bamenda','Maroua','Ngaoundéré','Bertoua','Ebolowa','Kribi','Autre']
 
@@ -27,10 +27,10 @@ export default function OnboardingScreen() {
     }).select().single()
     if (err) { setError(err.message); setLoading(false); return }
 
-    // Ajouter 2 coiffeuses par défaut
+    // Ajouter 2 praticiennes par défaut
     await supabase.from('coiffeuses').insert([
-      { salon_id: data.id, nom: 'Coiffeuse 1' },
-      { salon_id: data.id, nom: 'Coiffeuse 2' },
+      { salon_id: data.id, nom: 'Praticienne 1' },
+      { salon_id: data.id, nom: 'Praticienne 2' },
     ])
 
     setSalon(data)
@@ -52,7 +52,7 @@ export default function OnboardingScreen() {
             <div style={{fontSize:22,fontWeight:900,color:'var(--bx)',marginBottom:4}}>Votre salon ✂️</div>
             <div style={{fontSize:13,color:'var(--gris)',marginBottom:20}}>Comment s'appelle votre salon ?</div>
             <Input label="Nom du salon *" value={nom} onChange={setNom} placeholder="Ex : Salon Grâce" required />
-            <Input label="Téléphone WhatsApp *" value={tel} onChange={setTel} type="tel" placeholder="+237 6XX XXX XXX" />
+            <PhoneInputCM label="Téléphone WhatsApp *" value={tel} onChange={setTel} required />
             <div className="fg">
               <label className="lbl">Ville</label>
               <select className="inp" value={ville} onChange={e=>setVille(e.target.value)}>

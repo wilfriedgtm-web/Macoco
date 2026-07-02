@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, formatPrix } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Btn, Modal, Input, Select, Spinner } from '../../components/UI'
+import { Btn, Modal, Input, Select, Spinner, PhoneInputCM } from '../../components/UI'
 import { useToast } from '../../hooks/useToast'
 
 function getWeekDates() {
@@ -92,10 +92,10 @@ export default function Planning() {
       <div style={{margin:'16px 16px 0'}}><Btn variant="bx" full onClick={()=>setOpen(true)}>+ Nouveau RDV</Btn></div>
       <Modal open={open} onClose={()=>setOpen(false)} title="Nouveau RDV" sub={dateLabel}>
         <Input label="Nom *" value={fNom} onChange={setFNom} placeholder="Ex : Fatima Ngando"/>
-        <Input label="Téléphone" value={fTel} onChange={setFTel} type="tel" placeholder="+237 6XX XXX XXX"/>
+        <PhoneInputCM label="Téléphone" value={fTel} onChange={setFTel}/>
         {presta.length>0&&<Select label="Prestation" value={fP} onChange={setFP} options={presta.map(p=>({value:p.id,label:`${p.nom} — ${formatPrix(p.prix)}`}))}/>}
         <Select label="Heure" value={fH} onChange={setFH} options={HH}/>
-        {coifs.length>0&&<Select label="Coiffeuse" value={fC} onChange={setFC} options={coifs.map(c=>({value:c.id,label:'✂️ '+c.nom}))}/>}
+        {coifs.length>0&&<Select label="Praticienne" value={fC} onChange={setFC} options={coifs.map(c=>({value:c.id,label:'✂️ '+c.nom}))}/>}
         <Btn variant="bx" full disabled={saving} onClick={create} style={{marginBottom:8}}>{saving?'Création…':'Créer le RDV'}</Btn>
         <Btn variant="ghost" full onClick={()=>setOpen(false)}>Annuler</Btn>
       </Modal>

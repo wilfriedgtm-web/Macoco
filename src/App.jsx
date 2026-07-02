@@ -38,17 +38,23 @@ function Splash() {
 function AppInner() {
   const { session, salon, loading } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [tabVisits, setTabVisits] = useState({ dashboard: 0, attente: 0, planning: 0, catalogue: 0 })
 
   if (loading) return <Splash />
   if (!session) return <AuthScreen />
   if (session && !salon) return <OnboardingScreen />
 
+  const goTo = (tabId) => {
+    setActiveTab(tabId)
+    setTabVisits(v => ({ ...v, [tabId]: (v[tabId] || 0) + 1 }))
+  }
+
   const renderPage = () => {
     switch (activeTab) {
-      case 'dashboard':  return <Dashboard onGoTo={setActiveTab} />
-      case 'attente':    return <Attente />
-      case 'planning':   return <Planning />
-      case 'catalogue':  return <Catalogue />
+      case 'dashboard':  return <Dashboard onGoTo={goTo} key={`dashboard-${tabVisits.dashboard}`} />
+      case 'attente':    return <Attente key={`attente-${tabVisits.attente}`} />
+      case 'planning':   return <Planning key={`planning-${tabVisits.planning}`} />
+      case 'catalogue':  return <Catalogue key={`catalogue-${tabVisits.catalogue}`} />
       case 'parametres': return <Parametres />
       default: return null
     }
@@ -70,7 +76,7 @@ function AppInner() {
 
       <nav className="nav">
         {TABS.map(t => (
-          <button key={t.id} className={`nav-btn${activeTab === t.id ? ' on' : ''}`} onClick={() => setActiveTab(t.id)}>
+          <button key={t.id} className={`nav-btn${activeTab === t.id ? ' on' : ''}`} onClick={() => goTo(t.id)}>
             <span className="ni">{t.icon}</span>
             {t.label}
           </button>

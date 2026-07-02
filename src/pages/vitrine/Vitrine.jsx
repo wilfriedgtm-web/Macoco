@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase, formatPrix, PHOTOS_DEFAUT, waLink } from '../../lib/supabase'
+import { tt, locale, wa, AVIS_DEFAUT as AVIS_DEFAUT_I18N } from '../../lib/i18n'
 
 const HEURES = ['08h00','08h30','09h00','09h30','10h00','10h30','11h00','11h30','12h00','13h00','14h00','14h30','15h00','15h30','16h00','16h30','17h00','17h30','18h00']
 
-const AVIS_DEFAUT = [
-  { nom:'Patience Ekambi', emoji:'👩🏿', bg:'#F9F0F2', presta:'Tresse box braids', date:'Il y a 3 jours', texte:'"Grâce est vraiment talentueuse ! Zéro attente, résultat magnifique 🙌"' },
-  { nom:'Diane Moukoko', emoji:'👩🏽', bg:'#FDF6E7', presta:'Coupe + Brushing', date:'Il y a 1 semaine', texte:'"Elles me préviennent quand c\'est mon tour. Je viens pile à l\'heure 😍"' },
-  { nom:'Solange Bello', emoji:'👩🏾', bg:'#f0fdf4', presta:'Manucure', date:'Il y a 2 semaines', texte:'"Les meilleurs ongles de Douala Akwa ! J\'ai réservé depuis chez moi ✨"' },
+// Pays disponibles pour le sélecteur téléphone côté cliente (ordre imposé)
+const COUNTRIES = [
+  { code: '237', flag: '🇨🇲', label: '🇨🇲 +237', name: 'Cameroun' },
+  { code: '33',  flag: '🇫🇷', label: '🇫🇷 +33',  name: 'France' },
+  { code: '225', flag: '🇨🇮', label: '🇨🇮 +225', name: "Côte d'Ivoire" },
 ]
 
 function getCoverDefault(nom) {
@@ -20,7 +22,7 @@ function getCoverDefault(nom) {
   return PHOTOS_DEFAUT.default
 }
 
-function getNextDays(n = 30) {
+function getNextDays(n = 30, loc = 'fr-FR') {
   const days = []
   const today = new Date()
   for (let i = 0; i < n; i++) {
@@ -29,10 +31,10 @@ function getNextDays(n = 30) {
     const iso = d.toISOString().split('T')[0]
     days.push({
       iso,
-      short: d.toLocaleDateString('fr-FR',{weekday:'short'}),
+      short: d.toLocaleDateString(loc,{weekday:'short'}),
       day: d.getDate(),
       isToday: i === 0,
-      monthYear: d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'}),
+      monthYear: d.toLocaleDateString(loc,{month:'long',year:'numeric'}),
     })
   }
   return days
@@ -46,15 +48,18 @@ function groupByMonth(days) {
 
 // MODAL RÉSERVATION TOUT EN UN
 function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) {
+  const langue = salon?.langue || 'fr'
+  const loc = locale(langue)
   const [step, setStep] = useState(1) // 1=prestation+date+heure 2=coordonnées
   const [selectedP, setSelectedP] = useState(presta)
-  const [selectedDate, setSelectedDate] = useState(getNextDays(1)[0].iso)
+  const [selectedDate, setSelectedDate] = useState(getNextDays(1, loc)[0].iso)
   const [selectedH, setSelectedH] = useState('10h00')
   const [nom, setNom] = useState('')
-  const [tel, setTel] = useState('')
+  const [telCountry, setTelCountry] = useState(COUNTRIES[0].code) // 🇨🇲 +237 par défaut
+  const [telLocal, setTelLocal] = useState('')
   const [msg, setMsg] = useState('')
   const [sending, setSending] = useState(false)
-  const [dates] = useState(() => getNextDays(30))
+  const [dates] = useState(() => getNextDays(30, loc))
   const [creneauxPris, setCreneauxPris] = useState([])
   const [loadingCreneaux, setLoadingCreneaux] = useState(false)
 
@@ -80,14 +85,16 @@ function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) 
     fetchCreneaux()
   }, [open, salon?.id, selectedDate])
 
+  const telFull = `+${telCountry}${telLocal.replace(/\D/g, '')}`
+
   async function reserver() {
-    if (!nom.trim() || !tel.trim()) return
+    if (!nom.trim() || !telLocal.trim()) return
     setSending(true)
     await supabase.from('rendez_vous').insert({
       salon_id: salon.id,
       prestation_id: selectedP?.id || null,
       client_nom: nom.trim(),
-      client_tel: tel.trim(),
+      client_tel: telFull,
       date: selectedDate,
       heure: selectedH,
       message: msg.trim(),
@@ -102,8 +109,8 @@ function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) 
   if (!open) return null
 
   const dateLabel = selectedDate === new Date().toISOString().split('T')[0]
-    ? "Aujourd'hui"
-    : new Date(selectedDate + 'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})
+    ? tt(langue, 'aujourdhui')
+    : new Date(selectedDate + 'T12:00:00').toLocaleDateString(loc,{weekday:'long',day:'numeric',month:'long'})
 
   return (
     <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:200,display:'flex',alignItems:'flex-end',backdropFilter:'blur(4px)' }}
@@ -115,9 +122,9 @@ function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) 
           <div style={{ width:36,height:4,borderRadius:2,background:'#e2e8f0',margin:'0 auto 14px' }}/>
           <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between' }}>
             <div>
-              <div style={{ fontSize:17,fontWeight:800 }}>Réserver au {salon?.nom}</div>
+              <div style={{ fontSize:17,fontWeight:800 }}>{tt(langue,'reserverAu',salon?.nom)}</div>
               <div style={{ fontSize:12,color:'var(--gris)',marginTop:2 }}>
-                {selectedP ? selectedP.nom : 'Choisissez une prestation'} · {dateLabel} · {selectedH}
+                {selectedP ? selectedP.nom : tt(langue,'choisirPresta')} · {dateLabel} · {selectedH}
               </div>
             </div>
             <button onClick={onClose} style={{ width:34,height:34,borderRadius:'50%',background:'var(--gl)',border:'none',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>✕</button>
@@ -133,7 +140,7 @@ function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) 
           {step === 1 && (
             <>
               {/* PRESTATION */}
-              <div style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.5,marginBottom:10 }}>Prestation</div>
+              <div style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.5,marginBottom:10 }}>{tt(langue,'prestationLbl')}</div>
               <div style={{ display:'flex',gap:8,overflowX:'auto',scrollbarWidth:'none',paddingBottom:8,marginBottom:16 }}>
                 {prestas.map(p => (
                   <button key={p.id} onClick={() => setSelectedP(p)}
@@ -145,7 +152,7 @@ function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) 
               </div>
 
               {/* DATE */}
-              <div style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.5,marginBottom:10 }}>Date</div>
+              <div style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.5,marginBottom:10 }}>{tt(langue,'dateLbl')}</div>
               {Object.entries(groupByMonth(dates)).map(([my, days]) => (
                 <div key={my} style={{ marginBottom:14 }}>
                   <div style={{ fontSize:11,fontWeight:700,color:'var(--gris)',marginBottom:8 }}>{my}</div>
@@ -155,7 +162,7 @@ function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) 
                         style={{ flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',padding:'9px 11px',borderRadius:13,border:'none',background:selectedDate===d.iso?'var(--bx)':'var(--gl)',cursor:'pointer',fontFamily:'inherit',minWidth:50,transition:'all .15s' }}>
                         <span style={{ fontSize:9,fontWeight:700,color:selectedDate===d.iso?'rgba(255,255,255,.7)':'var(--gris)',textTransform:'uppercase' }}>{d.short}</span>
                         <span style={{ fontSize:18,fontWeight:900,color:selectedDate===d.iso?'#fff':'var(--noir)',lineHeight:1.2 }}>{d.day}</span>
-                        {d.isToday && <span style={{ fontSize:8,fontWeight:800,color:selectedDate===d.iso?'var(--or-l)':'var(--bx)',marginTop:1 }}>auj.</span>}
+                        {d.isToday && <span style={{ fontSize:8,fontWeight:800,color:selectedDate===d.iso?'var(--or-l)':'var(--bx)',marginTop:1 }}>{tt(langue,'auj')}</span>}
                       </button>
                     ))}
                   </div>
@@ -163,8 +170,8 @@ function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) 
               ))}
 
               {/* HEURE */}
-              <div style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.5,marginBottom:6 }}>Heure</div>
-              {loadingCreneaux && <div style={{ fontSize:12,color:'var(--gris)',marginBottom:10 }}>Vérification des disponibilités...</div>}
+              <div style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.5,marginBottom:6 }}>{tt(langue,'heureLbl')}</div>
+              {loadingCreneaux && <div style={{ fontSize:12,color:'var(--gris)',marginBottom:10 }}>{tt(langue,'verifDispo')}</div>}
               <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:7,marginBottom:20 }}>
                 {HEURES.map(h => {
                   const pris = creneauxPris.includes(h)
@@ -185,7 +192,7 @@ function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) 
                         opacity: pris ? .6 : 1,
                       }}>
                       {h}
-                      {pris && <div style={{ fontSize:8,color:'#94a3b8',marginTop:1 }}>Complet</div>}
+                      {pris && <div style={{ fontSize:8,color:'#94a3b8',marginTop:1 }}>{tt(langue,'complet')}</div>}
                     </button>
                   )
                 })}
@@ -193,13 +200,13 @@ function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) 
 
               {!selectedH && !loadingCreneaux && (
                 <div style={{ background:'var(--or-p)',border:'1px solid var(--or-l)',borderRadius:12,padding:'10px 14px',marginBottom:12,fontSize:13,color:'var(--or)',fontWeight:600 }}>
-                  ⚠️ Veuillez choisir un créneau disponible
+                  {tt(langue,'choisirCreneau')}
                 </div>
               )}
               <button onClick={() => setStep(2)}
                 disabled={!selectedP || !selectedDate || !selectedH || loadingCreneaux}
                 style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',background:'var(--bx)',color:'#fff',fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'inherit',opacity:(!selectedP||!selectedDate||!selectedH||loadingCreneaux)?.5:1 }}>
-                {loadingCreneaux ? 'Vérification...' : `Continuer → ${selectedP ? formatPrix(selectedP.prix) : ''}`}
+                {loadingCreneaux ? tt(langue,'verification') : tt(langue,'continuer', selectedP ? formatPrix(selectedP.prix) : '')}
               </button>
             </>
           )}
@@ -208,44 +215,50 @@ function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) 
             <>
               {/* RÉCAP */}
               <div style={{ background:'var(--bx-p)',borderRadius:14,padding:'14px 16px',marginBottom:20,borderLeft:'3px solid var(--bx)' }}>
-                <div style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',marginBottom:6 }}>Récapitulatif</div>
+                <div style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',marginBottom:6 }}>{tt(langue,'recapitulatif')}</div>
                 <div style={{ fontSize:14,fontWeight:700 }}>{selectedP?.icon} {selectedP?.nom}</div>
                 <div style={{ fontSize:13,color:'var(--gris)',marginTop:2 }}>{dateLabel} à {selectedH} · {formatPrix(selectedP?.prix||0)}</div>
               </div>
 
               {/* COORDONNÉES */}
-              <div style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.5,marginBottom:10 }}>Vos coordonnées</div>
+              <div style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.5,marginBottom:10 }}>{tt(langue,'vosCoordonnees')}</div>
               <div style={{ marginBottom:12 }}>
-                <label style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.4,display:'block',marginBottom:6 }}>Votre prénom *</label>
-                <input value={nom} onChange={e=>setNom(e.target.value)} placeholder="Ex : Aminata"
+                <label style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.4,display:'block',marginBottom:6 }}>{tt(langue,'votrePrenom')}</label>
+                <input value={nom} onChange={e=>setNom(e.target.value)} placeholder={tt(langue,'placeholderPrenom')}
                   style={{ width:'100%',padding:'13px 14px',borderRadius:12,border:'1.5px solid #e2e8f0',fontFamily:'inherit',fontSize:15,outline:'none',boxSizing:'border-box' }}
                   autoFocus/>
               </div>
               <div style={{ marginBottom:12 }}>
-                <label style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.4,display:'block',marginBottom:6 }}>WhatsApp *</label>
-                <input value={tel} onChange={e=>setTel(e.target.value)} type="tel" placeholder="+237 6XX XXX XXX"
-                  style={{ width:'100%',padding:'13px 14px',borderRadius:12,border:'1.5px solid #e2e8f0',fontFamily:'inherit',fontSize:15,outline:'none',boxSizing:'border-box' }}/>
+                <label style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.4,display:'block',marginBottom:6 }}>{tt(langue,'whatsappLabel')}</label>
+                <div style={{ display:'flex',gap:8 }}>
+                  <select value={telCountry} onChange={e=>setTelCountry(e.target.value)}
+                    style={{ padding:'13px 8px',borderRadius:12,border:'1.5px solid #e2e8f0',fontFamily:'inherit',fontSize:14,outline:'none',background:'#fff',flexShrink:0 }}>
+                    {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+                  </select>
+                  <input value={telLocal} onChange={e=>setTelLocal(e.target.value.replace(/[^\d\s]/g,''))} type="tel" placeholder={tt(langue,'placeholderTel')}
+                    style={{ flex:1,minWidth:0,padding:'13px 14px',borderRadius:12,border:'1.5px solid #e2e8f0',fontFamily:'inherit',fontSize:15,outline:'none',boxSizing:'border-box' }}/>
+                </div>
               </div>
               <div style={{ marginBottom:20 }}>
-                <label style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.4,display:'block',marginBottom:6 }}>Message (optionnel)</label>
-                <textarea value={msg} onChange={e=>setMsg(e.target.value)} placeholder="Précisions sur votre demande..."
+                <label style={{ fontSize:11,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.4,display:'block',marginBottom:6 }}>{tt(langue,'messageOpt')}</label>
+                <textarea value={msg} onChange={e=>setMsg(e.target.value)} placeholder={tt(langue,'placeholderMsg')}
                   style={{ width:'100%',padding:'13px 14px',borderRadius:12,border:'1.5px solid #e2e8f0',fontFamily:'inherit',fontSize:14,outline:'none',boxSizing:'border-box',resize:'none',height:80 }}/>
               </div>
 
-              <button onClick={reserver} disabled={sending||!nom.trim()||!tel.trim()}
-                style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',background:'var(--bx)',color:'#fff',fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'inherit',marginBottom:10,opacity:(sending||!nom.trim()||!tel.trim())?.6:1 }}>
-                {sending ? 'Envoi…' : '📅 Confirmer ma réservation'}
+              <button onClick={reserver} disabled={sending||!nom.trim()||!telLocal.trim()}
+                style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',background:'var(--bx)',color:'#fff',fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'inherit',marginBottom:10,opacity:(sending||!nom.trim()||!telLocal.trim())?.6:1 }}>
+                {sending ? tt(langue,'envoi') : tt(langue,'confirmerResa')}
               </button>
               <button onClick={() => {
-                const msg2 = `Bonjour, je voudrais réserver ${selectedP?.nom||'une prestation'} le ${dateLabel} à ${selectedH}. Merci !`
+                const msg2 = wa.demandeResa(langue, selectedP?.nom, dateLabel, selectedH)
                 window.open(waLink(salon.tel, msg2), '_blank')
               }}
                 style={{ width:'100%',padding:'13px',borderRadius:14,border:'none',background:'#25D366',color:'#fff',fontSize:14,fontWeight:800,cursor:'pointer',fontFamily:'inherit',marginBottom:10 }}>
-                💬 Réserver via WhatsApp
+                {tt(langue,'reserverWa')}
               </button>
               <button onClick={() => setStep(1)}
                 style={{ width:'100%',padding:'11px',borderRadius:14,border:'none',background:'var(--gl)',color:'var(--gris)',fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit' }}>
-                ← Modifier
+                {tt(langue,'modifier')}
               </button>
             </>
           )}
@@ -257,33 +270,35 @@ function ModalReservation({ open, onClose, salon, presta, prestas, onSuccess }) 
 
 // MODAL SUCCÈS
 function ModalSucces({ open, onClose, salon, data }) {
+  const langue = salon?.langue || 'fr'
   if (!open) return null
   return (
     <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:300,display:'flex',alignItems:'flex-end',backdropFilter:'blur(4px)' }}>
       <div style={{ background:'#fff',borderRadius:'24px 24px 0 0',width:'100%',padding:'28px 24px 48px',textAlign:'center' }}>
         <div style={{ fontSize:56,marginBottom:16 }}>🎉</div>
-        <div style={{ fontSize:20,fontWeight:900,marginBottom:8 }}>Demande envoyée !</div>
+        <div style={{ fontSize:20,fontWeight:900,marginBottom:8 }}>{tt(langue,'demandeEnvoyee')}</div>
         <div style={{ fontSize:14,color:'var(--gris)',lineHeight:1.6,marginBottom:6 }}>
-          <strong>{data?.nom}</strong>, votre demande au <strong>{salon?.nom}</strong> a été reçue.
+          {tt(langue,'demandeRecue', data?.nom, salon?.nom)}
         </div>
         <div style={{ background:'var(--bx-p)',borderRadius:12,padding:'12px 16px',marginBottom:24,fontSize:13,color:'var(--bx)',fontWeight:600 }}>
           📅 {data?.prestaName} · {data?.heure}
         </div>
         <div style={{ fontSize:13,color:'var(--gris)',marginBottom:20,lineHeight:1.6 }}>
-          Le salon va confirmer votre RDV par WhatsApp. Gardez votre téléphone à portée.
+          {tt(langue,'salonVaConfirmer')}
         </div>
-        <button onClick={() => window.open(waLink(salon?.tel, `Bonjour, j'ai fait une demande de RDV pour ${data?.prestaName} à ${data?.heure}. Pouvez-vous confirmer ?`), '_blank')}
+        <button onClick={() => window.open(waLink(salon?.tel, wa.demandeConfirmation(langue, data?.prestaName, data?.heure)), '_blank')}
           style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',background:'#25D366',color:'#fff',fontSize:14,fontWeight:800,cursor:'pointer',fontFamily:'inherit',marginBottom:10 }}>
-          💬 Confirmer sur WhatsApp
+          {tt(langue,'confirmerWa')}
         </button>
         <button onClick={onClose}
           style={{ width:'100%',padding:'12px',borderRadius:14,border:'none',background:'var(--gl)',color:'var(--gris)',fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit' }}>
-          Retour au salon
+          {tt(langue,'retourSalon')}
         </button>
       </div>
     </div>
   )
 }
+
 
 // GALERIE
 function Gallery({ open, photos, startIdx, label, onClose }) {
@@ -355,12 +370,13 @@ export default function Vitrine() {
   const getPhotos = (p) => photos[p.id]?.length ? photos[p.id] : [getCoverDefault(p.nom)]
 
   if (loading) return <div style={{ minHeight:'100dvh',background:'var(--bx)',display:'flex',alignItems:'center',justifyContent:'center' }}><div className="spin"/></div>
+  const langue = salon?.langue || 'fr'
   if (notFound) return (
     <div style={{ minHeight:'100dvh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24,textAlign:'center' }}>
       <div style={{ fontSize:48 }}>✂️</div>
-      <div style={{ fontSize:20,fontWeight:800,margin:'12px 0 8px' }}>Salon introuvable</div>
-      <div style={{ fontSize:14,color:'var(--gris)',marginBottom:20 }}>Ce salon n'existe pas ou n'est plus actif.</div>
-      <button onClick={()=>navigate('/')} style={{ background:'var(--bx)',color:'#fff',border:'none',borderRadius:12,padding:'12px 24px',fontSize:14,fontWeight:700,cursor:'pointer',fontFamily:'inherit' }}>← Retour à l'accueil</button>
+      <div style={{ fontSize:20,fontWeight:800,margin:'12px 0 8px' }}>{tt(langue,'salonIntrouvable')}</div>
+      <div style={{ fontSize:14,color:'var(--gris)',marginBottom:20 }}>{tt(langue,'salonIntrouvableDesc')}</div>
+      <button onClick={()=>navigate('/')} style={{ background:'var(--bx)',color:'#fff',border:'none',borderRadius:12,padding:'12px 24px',fontSize:14,fontWeight:700,cursor:'pointer',fontFamily:'inherit' }}>{tt(langue,'retourAccueil')}</button>
     </div>
   )
 
@@ -371,7 +387,7 @@ export default function Vitrine() {
       <div style={{ position:'fixed',top:16,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:430,padding:'0 16px',zIndex:50,pointerEvents:'none' }}>
         <button onClick={()=>navigate(-1)}
           style={{ pointerEvents:'all',background:'rgba(0,0,0,.45)',backdropFilter:'blur(8px)',border:'none',color:'#fff',borderRadius:20,padding:'8px 16px',fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:6 }}>
-          ← Retour
+          {tt(langue,'retour')}
         </button>
       </div>
 
@@ -385,26 +401,26 @@ export default function Vitrine() {
           <div style={{ display:'flex',alignItems:'center',gap:8,marginTop:6 }}>
             <span style={{ color:'#E8B84B',fontSize:13,letterSpacing:2 }}>★★★★★</span>
             <span style={{ fontSize:12,color:'rgba(255,255,255,.8)',fontWeight:700 }}>4.9</span>
-            <span style={{ fontSize:12,color:'rgba(255,255,255,.6)' }}>· {avis.length>0?avis.length:127} avis</span>
+            <span style={{ fontSize:12,color:'rgba(255,255,255,.6)' }}>· {avis.length>0?avis.length:127} {langue==='en'?'reviews':'avis'}</span>
           </div>
         </div>
-        <div style={{ position:'absolute',top:56,right:14,background:'var(--vm)',color:'#fff',fontSize:11,fontWeight:800,padding:'5px 12px',borderRadius:20 }}>🟢 Ouvert</div>
+        <div style={{ position:'absolute',top:56,right:14,background:'var(--vm)',color:'#fff',fontSize:11,fontWeight:800,padding:'5px 12px',borderRadius:20 }}>{tt(langue,'ouvert')}</div>
       </div>
 
       {/* INFOS */}
       <div style={{ display:'flex',background:'#fff',borderBottom:'1px solid #f1f5f9' }}>
-        <div style={{ flex:1,padding:12,textAlign:'center',borderRight:'1px solid #f1f5f9' }}><div style={{ fontSize:18,fontWeight:900,color:'var(--bx)' }}>{presta.length}</div><div style={{ fontSize:11,color:'var(--gris)',fontWeight:600 }}>Prestations</div></div>
+        <div style={{ flex:1,padding:12,textAlign:'center',borderRight:'1px solid #f1f5f9' }}><div style={{ fontSize:18,fontWeight:900,color:'var(--bx)' }}>{presta.length}</div><div style={{ fontSize:11,color:'var(--gris)',fontWeight:600 }}>{tt(langue,'prestationsLbl')}</div></div>
         <div style={{ flex:1,padding:12,textAlign:'center',borderRight:'1px solid #f1f5f9' }}><div style={{ fontSize:13,fontWeight:900,color:'var(--bx)' }}>⏱️</div><div style={{ fontSize:11,color:'var(--gris)',fontWeight:600 }}>{salon.heures||'8h–19h'}</div></div>
-        <div style={{ flex:1,padding:12,textAlign:'center' }}><div style={{ fontSize:13,fontWeight:900,color:'var(--bx)' }}>💬</div><div style={{ fontSize:11,color:'var(--gris)',fontWeight:600 }}>WhatsApp</div></div>
+        <div style={{ flex:1,padding:12,textAlign:'center' }}><div style={{ fontSize:13,fontWeight:900,color:'var(--bx)' }}>💬</div><div style={{ fontSize:11,color:'var(--gris)',fontWeight:600 }}>{tt(langue,'whatsapp')}</div></div>
       </div>
 
       {/* CTA STICKY */}
       <div style={{ position:'sticky',top:0,zIndex:40,background:'#fff',padding:'10px 16px',borderBottom:'1px solid #f1f5f9',display:'flex',gap:8 }}>
         <button onClick={()=>{ setSelectedPrestaForModal(presta[0]||null); setModalResa(true) }}
           style={{ flex:1,padding:'12px',borderRadius:12,border:'none',background:'var(--bx)',color:'#fff',fontSize:14,fontWeight:800,cursor:'pointer',fontFamily:'inherit' }}>
-          📅 Réserver maintenant
+          {tt(langue,'reserverMaintenant')}
         </button>
-        <button onClick={()=>window.open(waLink(salon.tel,`Bonjour, je voudrais prendre un RDV au ${salon.nom}.`),'_blank')}
+        <button onClick={()=>window.open(waLink(salon.tel, wa.prendreRdv(langue, salon.nom)),'_blank')}
           style={{ padding:'12px 14px',borderRadius:12,border:'none',background:'#25D366',color:'#fff',fontSize:18,cursor:'pointer' }}>
           💬
         </button>
@@ -414,7 +430,7 @@ export default function Vitrine() {
         {/* PRESTATIONS */}
         {presta.length>0 && (
           <>
-            <div style={{ fontSize:12,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.6,margin:'8px 0 12px' }}>Nos prestations</div>
+            <div style={{ fontSize:12,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.6,margin:'8px 0 12px' }}>{tt(langue,'nosPrestations')}</div>
             {presta.map(p => (
               <div key={p.id} style={{ background:'#fff',borderRadius:16,marginBottom:12,overflow:'hidden',boxShadow:'0 1px 4px rgba(0,0,0,.08)' }}>
                 <div style={{ position:'relative',height:150,overflow:'hidden',cursor:'pointer' }} onClick={()=>setGallery({open:true,photos:getPhotos(p),label:p.nom,startIdx:0})}>
@@ -444,7 +460,7 @@ export default function Vitrine() {
                   </div>
                   <button onClick={()=>openResa(p)}
                     style={{ width:'100%',padding:'11px',borderRadius:12,border:'none',background:'var(--bx)',color:'#fff',fontSize:14,fontWeight:800,cursor:'pointer',fontFamily:'inherit' }}>
-                    Réserver {p.nom}
+                    {tt(langue,'reserverPresta', p.nom)}
                   </button>
                 </div>
               </div>
@@ -453,8 +469,8 @@ export default function Vitrine() {
         )}
 
         {/* AVIS */}
-        <div style={{ fontSize:12,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.6,margin:'20px 0 12px' }}>Avis clientes ★★★★★</div>
-        {(avis.length>0 ? avis.map(a=>({nom:a.client_nom,texte:`"${a.texte}"`,date:new Date(a.created_at).toLocaleDateString('fr-FR'),emoji:'👩🏿',bg:'var(--bx-p)'})) : AVIS_DEFAUT).map((a,i)=>(
+        <div style={{ fontSize:12,fontWeight:700,color:'var(--gris)',textTransform:'uppercase',letterSpacing:.6,margin:'20px 0 12px' }}>{tt(langue,'avisClientes')}</div>
+        {(avis.length>0 ? avis.map(a=>({nom:a.client_nom,texte:`"${a.texte}"`,date:new Date(a.created_at).toLocaleDateString(locale(langue)),emoji:'👩🏿',bg:'var(--bx-p)'})) : AVIS_DEFAUT_I18N[langue] || AVIS_DEFAUT_I18N.fr).map((a,i)=>(
           <div key={i} style={{ background:'#fff',borderRadius:16,padding:16,marginBottom:10,boxShadow:'0 1px 3px rgba(0,0,0,.06)' }}>
             <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:8 }}>
               <div style={{ width:38,height:38,borderRadius:'50%',background:a.bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0 }}>{a.emoji}</div>
@@ -477,12 +493,12 @@ export default function Vitrine() {
             </a>
           )}
           <div style={{ fontSize:11,color:'var(--gris)',marginTop:salon.insta?8:0 }}>
-            Propulsé par{' '}
+            {tt(langue,'proposePar')}{' '}
             <a href="https://macoco-c2oy.vercel.app" target="_blank" rel="noreferrer"
               style={{ color:'var(--bx)',fontWeight:700,textDecoration:'none' }}>
               Ma'coco
             </a>
-            {' '}· La réservation beauté au Cameroun
+            {' '}· {tt(langue,'tagline')}
           </div>
         </div>
       </div>

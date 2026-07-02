@@ -3,6 +3,7 @@ import { supabase, today, waLink } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Btn, Spinner, Empty } from '../../components/UI'
 import { useToast } from '../../hooks/useToast'
+import { wa } from '../../lib/i18n'
 
 export default function Attente() {
   const { salon } = useAuth()
@@ -24,7 +25,7 @@ export default function Attente() {
   }
 
   async function prevenir(rdv, min) {
-    const msg = `Bonjour ${rdv.client_nom} 👋 C'est bientôt votre tour au ${salon.nom} — dans environ ${min} minutes. Vous pouvez venir maintenant ! ✂️`
+    const msg = wa.prevenirFileAttente(salon.langue, rdv.client_nom, salon.nom, min)
     window.open(waLink(rdv.client_tel, msg), '_blank')
     await supabase.from('rendez_vous').update({ prevenu_at: new Date().toISOString() }).eq('id', rdv.id)
     showToast(`💬 Message envoyé à ${rdv.client_nom}`, 'wa')

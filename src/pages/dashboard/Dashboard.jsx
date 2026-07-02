@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase, today, formatPrix, waLink, STATUTS } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Badge, Btn, Modal, Input, Select, Spinner, Empty } from '../../components/UI'
+import { Badge, Btn, Modal, Input, Select, Spinner, Empty, PhoneInputCM } from '../../components/UI'
 import { useToast } from '../../hooks/useToast'
+import { wa } from '../../lib/i18n'
 
 export default function Dashboard({ onGoTo }) {
   const { salon } = useAuth()
@@ -49,7 +50,7 @@ export default function Dashboard({ onGoTo }) {
     await supabase.from('rendez_vous').update({ statut: 'confirme', confirme_at: new Date().toISOString() }).eq('id', rdv.id)
     setRdvs(prev => prev.map(r => r.id === rdv.id ? { ...r, statut: 'confirme' } : r))
     const p = rdv.prestations?.nom || ''
-    const msg = `Bonjour ${rdv.client_nom}, votre rendez-vous au ${salon.nom} est confirmé pour aujourd'hui à ${rdv.heure}${p ? ' — ' + p : ''}. À tout à l'heure ! ✂️`
+    const msg = wa.confirmationRdv(salon.langue, rdv.client_nom, salon.nom, rdv.heure, p)
     window.open(waLink(rdv.client_tel, msg), '_blank')
     setModalConfirm(null)
     showToast(`✓ ${rdv.client_nom} confirmée`, 'ok')
@@ -140,7 +141,7 @@ export default function Dashboard({ onGoTo }) {
               )}
               {rdv.statut === 'confirme' && (
                 <>
-                  <Btn sm variant="wa" onClick={() => window.open(waLink(rdv.client_tel, `Bonjour ${rdv.client_nom}, c'est bientôt votre tour au ${salon.nom} ! ✂️`), '_blank')}>💬</Btn>
+                  <Btn sm variant="wa" onClick={() => window.open(waLink(rdv.client_tel, wa.cestBientotVotreTour(salon.langue, rdv.client_nom, salon.nom)), '_blank')}>💬</Btn>
                   <Btn sm variant="ghost" onClick={() => marquerFait(rdv)}>✓ Fait</Btn>
                 </>
               )}
@@ -180,7 +181,7 @@ export default function Dashboard({ onGoTo }) {
                   {rdv.statut === 'en_attente' && (
                     <Btn sm variant="wa" onClick={async () => {
                       const dateF = d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})
-                      const msg = `Bonjour ${rdv.client_nom}, votre rendez-vous au ${salon.nom} est confirmé pour le ${dateF} à ${rdv.heure}${rdv.prestations?.nom?' — '+rdv.prestations.nom:''}. À bientôt ! ✂️`
+                      const msg = wa.confirmationRdvDate(salon.langue, rdv.client_nom, salon.nom, dateF, rdv.heure, rdv.prestations?.nom)
                       await supabase.from('rendez_vous').update({ statut:'confirme', confirme_at: new Date().toISOString() }).eq('id', rdv.id)
                       window.open(waLink(rdv.client_tel, msg), '_blank')
                       showToast(`✓ ${rdv.client_nom} confirmée`, 'ok')
@@ -201,14 +202,14 @@ export default function Dashboard({ onGoTo }) {
       {/* MODAL NOUVEAU RDV */}
       <Modal open={modalNew} onClose={() => setModalNew(false)} title="Nouveau rendez-vous" sub="Ajoutez manuellement un RDV">
         <Input label="Nom de la cliente *" value={fNom} onChange={setFNom} placeholder="Ex : Fatima Ngando" />
-        <Input label="Téléphone WhatsApp *" value={fTel} onChange={setFTel} type="tel" placeholder="+237 6XX XXX XXX" />
+        <PhoneInputCM label="Téléphone WhatsApp *" value={fTel} onChange={setFTel} required />
         {presta.length > 0 && (
           <Select label="Prestation" value={fPresta} onChange={setFPresta}
             options={presta.map(p => ({ value: p.id, label: `${p.nom} — ${formatPrix(p.prix)}` }))} />
         )}
         <Select label="Heure" value={fHeure} onChange={setFHeure} options={HEURES_OPT} />
         {coifs.length > 0 && (
-          <Select label="Coiffeuse" value={fCoif} onChange={setFCoif}
+          <Select label="Praticienne" value={fCoif} onChange={setFCoif}
             options={coifs.map(c => ({ value: c.id, label: '✂️ ' + c.nom }))} />
         )}
         <Btn variant="bx" full disabled={saving} onClick={creerRdv} style={{marginBottom:8}}>

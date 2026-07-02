@@ -65,6 +65,30 @@ export function Input({ label, value, onChange, type='text', placeholder, requir
   )
 }
 
+// Champ téléphone avec indicatif +237 fixe (affichage) — utilisé partout
+// dans l'app gérant (onboarding, dashboard, planning, paramètres).
+// La valeur stockée/renvoyée via onChange inclut toujours l'indicatif,
+// ex: "+237677112233".
+export function PhoneInputCM({ label, value, onChange, placeholder, required }) {
+  const local = (value || '').replace(/^\+?237/, '').replace(/^\s+/, '')
+  return (
+    <div className="fg">
+      {label && <label className="lbl">{label}{required && ' *'}</label>}
+      <div className="phone-group">
+        <span className="phone-prefix">🇨🇲 +237</span>
+        <input
+          className="inp phone-local"
+          type="tel"
+          value={local}
+          onChange={e => onChange('+237' + e.target.value.replace(/[^\d\s]/g, ''))}
+          placeholder={placeholder || '6XX XXX XXX'}
+          required={required}
+        />
+      </div>
+    </div>
+  )
+}
+
 export function Textarea({ label, value, onChange, placeholder }) {
   return (
     <div className="fg">

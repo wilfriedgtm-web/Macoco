@@ -126,7 +126,7 @@ export default function Accueil({ onGoTo }) {
           </select>
         </div>
         <div className="mc-form-group">
-          <label className="mc-label">Coiffeuse</label>
+          <label className="mc-label">Praticienne</label>
           <select className="mc-input">
             <option>✂️ Grâce</option>
             <option>✂️ Sandrine</option>

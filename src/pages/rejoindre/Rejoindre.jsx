@@ -174,7 +174,7 @@ export default function Rejoindre() {
               <div style={{ fontSize:18,fontWeight:900 }}>Starter</div>
               <div style={{ fontSize:24,fontWeight:900,color:'var(--bx)' }}>Gratuit</div>
             </div>
-            {['Vitrine publique','Jusqu\'à 30 RDV/mois','2 coiffeuses','File d\'attente WhatsApp','Support communautaire'].map((f,i)=>(
+            {['Vitrine publique','Jusqu\'à 30 RDV/mois','2 praticiennes','File d\'attente WhatsApp','Support communautaire'].map((f,i)=>(
               <div key={i} style={{ fontSize:13,color:'var(--gris)',padding:'5px 0',display:'flex',gap:8 }}><span style={{color:'var(--vert)'}}>✓</span>{f}</div>
             ))}
             <Link to="/app" style={{ display:'block',marginTop:14,background:'var(--bx)',color:'#fff',padding:'12px',borderRadius:12,fontSize:14,fontWeight:700,textDecoration:'none',textAlign:'center' }}>
@@ -190,7 +190,7 @@ export default function Rejoindre() {
               <div><span style={{ fontSize:22,fontWeight:900,color:'#E8B84B' }}>15 000 F</span><span style={{ fontSize:12,color:'rgba(255,255,255,.5)' }}>/mois</span></div>
             </div>
             <div style={{ fontSize:11,color:'rgba(255,255,255,.5)',marginBottom:12 }}>≈ 23€/mois</div>
-            {['RDV illimités','Coiffeuses illimitées','Statistiques avancées','Rappels automatiques','Support prioritaire'].map((f,i)=>(
+            {['RDV illimités','Praticiennes illimitées','Statistiques avancées','Rappels automatiques','Support prioritaire'].map((f,i)=>(
               <div key={i} style={{ fontSize:13,color:'rgba(255,255,255,.75)',padding:'5px 0',display:'flex',gap:8 }}><span style={{color:'#E8B84B'}}>✓</span>{f}</div>
             ))}
           </div>

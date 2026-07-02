@@ -20,7 +20,7 @@ const FEATURES = [
 ]
 
 const TEMOIGNAGES = [
-  { nom: 'Grâce M.', metier: 'Coiffeuse · Douala', emoji: '👩🏿', texte: '"Avant je perdais 4 clientes par semaine. Maintenant tout est organisé et je ne rate plus aucun RDV."' },
+  { nom: 'Grâce M.', metier: 'Praticienne · Douala', emoji: '👩🏿', texte: '"Avant je perdais 4 clientes par semaine. Maintenant tout est organisé et je ne rate plus aucun RDV."' },
   { nom: 'Sandra K.', metier: 'Ongleriste · Yaoundé', emoji: '👩🏽', texte: '"Mes clientes adorent réserver en ligne. Elles voient mes photos et elles viennent déjà convaincues."' },
   { nom: 'Patrick N.', metier: 'Barbier · Douala', emoji: '👨🏿', texte: '"Le planning est tellement clair. Je sais exactement qui vient à quelle heure. Fini le chaos."' },
 ]
